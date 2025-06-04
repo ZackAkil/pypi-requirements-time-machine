@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyPI Requirements Versioner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+        }
+        /* Custom styles for better aesthetics and responsiveness */
+        .container-wrapper {
+            background-image: linear-gradient(to bottom right, #f0f9ff, #cbe8ff); /* Light blue gradient */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem; /* Increased overall padding */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+        .app-container {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Stronger, softer shadow */
+            padding: 3rem; /* Increased padding */
+            max-width: 1200px; /* Increased max width for more space */
+            width: 100%;
+            display: grid; /* Use grid for layout */
+            grid-template-columns: 1fr; /* Default to single column for small screens */
+            gap: 2rem; /* Gap between sections */
+        }
+        @media (min-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr 1fr; /* Two columns for larger screens */
+            }
+            .input-group, .output-group {
+                min-width: 300px; /* Ensure columns have a minimum width */
+            }
+            /* Controls and links output now span both columns */
+            .controls, .links-output-group {
+                grid-column: span 2;
+            }
+        }
+
+        .input-group, .output-group, .links-output-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* Slightly more gap within groups */
+        }
+        textarea {
+              padding: 12px 20px;
+            min-height: 250px; /* Slightly taller text areas */
+            resize: vertical;
+            border: 1px solid #c0d9ed; /* Softer blue border */
+            border-radius: 1rem; /* More rounded textarea */
+            padding: 2.5rem; /* Increased padding inside textarea for more space */
+            font-family: monospace; /* Monospace for code */
+            background-color: #fcfdfe; /* Very light background */
+            font-size: 0.9rem; /* Slightly smaller font for code */
+            line-height: 1.4;
+            box-sizing: border-box; /* Include padding in element's total width and height */
+            width: 100%; /* Ensure textarea takes full width of its grid cell */
+        }
+        /* Button styling */
+        button {
+            background-color: #2563eb; /* Stronger blue */
+            padding: 1.5rem 2.5rem; /* Increased vertical padding for taller button */
+            border-radius: 0.75rem; /* Rounded button */
+            font-size: 1.1rem; /* Slightly larger font size for button */
+            font-weight: 700; /* Bold */
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); /* Soft shadow */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem; /* Increased gap for text and spinner */
+            color: #ffffff; /* Explicitly set text color to white */
+            width: 100%; /* Full width on small screens */
+            max-width: 350px; /* Max width for button on larger screens */
+            margin-left: auto; /* Center button on larger screens */
+            margin-right: auto; /* Center button on larger screens */
+        }
+        button:hover:not(:disabled) {
+            background-color: #3b82f6; /* Lighter blue (Tailwind blue-500) on hover */
+            transform: translateY(-3px); /* Lift effect */
+            box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3); /* Enhanced shadow on hover */
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none; /* No lift effect when disabled */
+            box-shadow: none;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #dc2626; /* Stronger red for errors */
+            background-color: #fee2e2; /* Light red background */
+            border: 1px solid #fca5a5;
+            padding: 1rem; /* More padding */
+            border-radius: 1rem; /* More rounded */
+            font-weight: 500;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column; /* Stack vertically on small screens */
+            gap: 1.5rem; /* Space between date picker and button */
+            align-items: center; /* Center items for the button to be centered */
+            padding-bottom: 1rem; /* Add some space below controls */
+        }
+        @media (min-width: 768px) {
+            .controls {
+                flex-direction: row; /* Horizontal on larger screens */
+                align-items: center; /* Align button and date input vertically in center */
+                justify-content: center; /* Center the entire controls group */
+            }
+        }
+        .controls input[type="date"] {
+            flex-grow: 1; /* Date input takes available space */
+            max-width: 250px; /* Limit width of date input */
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); /* Inner shadow */
+            font-size: 1rem;
+        }
+        .links-output-content {
+            background-color: #f9fafb;
+            border: 1px solid #c0d9ed;
+            border-radius: 1rem;
+            padding: 1rem;
+            min-height: 120px; /* Minimum height for link area */
+            max-height: 300px; /* Max height to allow scrolling */
+            overflow-y: auto; /* Scroll if content overflows */
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem; /* Space between links */
+            box-sizing: border-box;
+        }
+        .links-output-content a {
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.5rem;
+            background-color: #e0f2fe; /* Light blue background for links */
+            color: #0b60b4; /* Darker blue text */
+            font-size: 0.9rem;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .links-output-content a:hover {
+            background-color: #cbe8ff; /* Lighter blue on hover */
+            color: #0c4a92;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="container-wrapper">
+        <div class="app-container">
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 col-span-full mb-4">PyPI Requirements Versioner</h1>
+
+            <div class="controls">
+                <div class="flex-grow text-center"> <!-- Added text-center for date label -->
+                    <label for="targetDateInput" class="text-xl font-semibold text-gray-700 block mb-2">Select Target Date:</label>
+                    <input type="date" id="targetDateInput">
+                </div>
+                <button id="generateButton">
+                    <span id="buttonText">Generate Versioned Requirements</span>
+                    <div id="loadingSpinner" class="loading-spinner hidden"></div>
+                </button>
+            </div>
+
+            <div class="input-group">
+                <label for="requirementsInput" class="text-xl font-semibold text-gray-700">Paste your requirements.txt:</label>
+                <textarea id="requirementsInput" placeholder="e.g.,&#x0A;requests&#x0A;numpy&#x0A;flask&#x0A;# My comment"></textarea>
+            </div>
+
+            <div class="output-group">
+                <label for="versionedRequirementsOutput" class="text-xl font-semibold text-gray-700">Versioned requirements.txt:</label>
+                <textarea id="versionedRequirementsOutput" readonly class="bg-gray-50 text-gray-800"></textarea>
+            </div>
+
+            <div class="links-output-group">
+                <label class="text-xl font-semibold text-gray-700">PyPI Release History Links:</label>
+                <div id="pypiLinksOutput" class="links-output-content">
+                    No links generated yet.
+                </div>
+            </div>
+
+            <div id="errorMessage" class="error-message hidden col-span-full"></div>
+        </div>
+    </div>
+
+    <script>
+        // Get references to HTML elements
+        const requirementsInput = document.getElementById('requirementsInput');
+        const targetDateInput = document.getElementById('targetDateInput');
+        const generateButton = document.getElementById('generateButton');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const versionedRequirementsOutput = document.getElementById('versionedRequirementsOutput');
+        const pypiLinksOutput = document.getElementById('pypiLinksOutput');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Set a default date in the past (e.g., January 1, 2019)
+        const defaultPastDate = new Date('2019-01-01T00:00:00'); // Ensure UTC for consistency
+        const defaultYear = defaultPastDate.getFullYear();
+        const defaultMonth = (defaultPastDate.getMonth() + 1).toString().padStart(2, '0');
+        const defaultDay = defaultPastDate.getDate().toString().padStart(2, '0');
+        targetDateInput.value = `${defaultYear}-${defaultMonth}-${defaultDay}`;
+
+        // Auto-fill requirements for quick testing
+        requirementsInput.value = `requests
+numpy
+flask
+# A comment in the requirements file
+markdown
+click`;
+
+
+        /**
+         * Fetches package version information from PyPI JSON API for a specific date.
+         * @param {string} packageName - The name of the package.
+         * @param {Date} targetDate - The target date object.
+         * @returns {Promise<{processedLine: string, pypiHistoryUrl: string | null}>} - A promise that resolves to an object containing the versioned line and its PyPI history URL.
+         */
+        async function getPackageVersionOnDateFromPypiApi(packageName, targetDate) {
+            const pypiJsonUrl = `https://pypi.org/pypi/${packageName}/json`;
+            console.log(`Querying PyPI JSON API for ${packageName}`);
+
+            try {
+                const response = await fetch(pypiJsonUrl, { timeout: 10000 }); // 10 seconds timeout
+                if (!response.ok) {
+                    // Check specifically for 404 Not Found
+                    if (response.status === 404) {
+                        return { processedLine: `${packageName}==NOT_FOUND`, pypiHistoryUrl: null };
+                    }
+                    throw new Error(`HTTP error! status: ${response.status} for ${packageName}`);
+                }
+                const data = await response.json();
+
+                const releases = [];
+                for (const version in data.releases) {
+                    if (data.releases.hasOwnProperty(version)) {
+                        const distributions = data.releases[version];
+                        const versionUploadDates = [];
+
+                        for (const dist of distributions) {
+                            const uploadTimeStr = dist.upload_time_iso_8601;
+                            if (uploadTimeStr) {
+                                try {
+                                    // Parse ISO 8601 timestamp
+                                    const uploadDate = new Date(uploadTimeStr);
+                                    versionUploadDates.push(uploadDate);
+                                } catch (e) {
+                                    console.warn(`Could not parse date for ${packageName} version ${version}: ${e.message}`);
+                                    continue; // Skip if date format is unexpected
+                                }
+                            }
+                        }
+
+                        if (versionUploadDates.length > 0) {
+                            // Find the earliest upload date for this version (its true "release" date)
+                            const minUploadDate = new Date(Math.min(...versionUploadDates));
+                            releases.push({ version: version, date: minUploadDate });
+                        }
+                    }
+                }
+
+                if (releases.length === 0) {
+                    console.warn(`No releases found for ${packageName} in PyPI API response.`);
+                    return { processedLine: `${packageName}==NO_RELEASES_FOUND`, pypiHistoryUrl: null };
+                }
+
+                // Convert targetDate to start of day for comparison to ensure only date part is used
+                const targetDateStartOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+                // Filter releases that are on or before the target date
+                const filteredReleases = releases.filter(rel => rel.date <= targetDateStartOfDay);
+
+                if (filteredReleases.length === 0) {
+                    console.warn(`No version of ${packageName} found on or before ${targetDate.toDateString()}`);
+                    // Return the oldest version available if no historical version on or before the date was found
+                    // Or indicate a specific status
+                    const sortedAllReleases = releases.sort((a,b) => a.date.getTime() - b.date.getTime());
+                    if (sortedAllReleases.length > 0) {
+                        return { processedLine: `${packageName}==NO_VERSION_ON_DATE (Oldest: ${sortedAllReleases[0].version} on ${sortedAllReleases[0].date.toDateString()})`, pypiHistoryUrl: null };
+                    }
+                    return { processedLine: `${packageName}==NO_VERSION_ON_DATE`, pypiHistoryUrl: null };
+                }
+
+                // Sort filtered releases by date in descending order (latest date first)
+                // If dates are identical, then sort by version number (semver parsing would be ideal here)
+                filteredReleases.sort((a, b) => {
+                    const dateDiff = b.date.getTime() - a.date.getTime();
+                    if (dateDiff !== 0) {
+                        return dateDiff;
+                    }
+                    // If dates are the same, try a simple string comparison for version (not strictly semver)
+                    return b.version.localeCompare(a.version);
+                });
+
+                const latestVersionOnDate = filteredReleases[0].version;
+                const pypiHistoryUrl = `https://pypi.org/project/${packageName}/#history`;
+                console.log(`Found ${packageName}==${latestVersionOnDate} for date ${targetDate.toDateString()}. History: ${pypiHistoryUrl}`);
+                return { processedLine: `${packageName}==${latestVersionOnDate}`, pypiHistoryUrl: pypiHistoryUrl };
+
+            } catch (error) {
+                console.error(`Error fetching ${packageName}:`, error);
+                return { processedLine: `${packageName}==FETCH_ERROR`, pypiHistoryUrl: null };
+            }
+        }
+
+        /**
+         * Displays an error message to the user.
+         * @param {string} message - The error message to display.
+         */
+        function displayError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        /**
+         * Clears any displayed error messages.
+         */
+        function clearError() {
+            errorMessage.classList.add('hidden');
+            errorMessage.textContent = '';
+        }
+
+        /**
+         * Handles the generation of versioned requirements.
+         */
+        generateButton.addEventListener('click', async () => {
+            clearError();
+            versionedRequirementsOutput.value = ''; // Clear previous output
+            pypiLinksOutput.innerHTML = 'No links generated yet.'; // Clear previous links
+
+            const requirementsText = requirementsInput.value;
+            const targetDateStr = targetDateInput.value;
+
+            if (!requirementsText.trim()) {
+                displayError('Please paste your requirements.txt content.');
+                return;
+            }
+
+            if (!targetDateStr) {
+                displayError('Please select a target date.');
+                return;
+            }
+
+            let targetDate;
+            try {
+                targetDate = new Date(targetDateStr + 'T00:00:00'); // Ensure date is parsed as start of day
+                if (isNaN(targetDate.getTime())) { // Check for invalid date
+                    throw new Error('Invalid date selected.');
+                }
+            } catch (e) {
+                displayError(`Error parsing date: ${e.message}`);
+                return;
+            }
+
+            // Show loading state
+            buttonText.textContent = 'Generating...';
+            loadingSpinner.classList.remove('hidden');
+            generateButton.disabled = true;
+
+            const lines = requirementsText.split('\n');
+            const processedResults = []; // To store { processedLine, pypiHistoryUrl } objects
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine || trimmedLine.startsWith('#')) {
+                    processedResults.push({ processedLine: line, pypiHistoryUrl: null }); // Keep comments and empty lines
+                    continue;
+                }
+
+                // Extract package name by removing any existing version specifiers
+                const packageNameOnly = trimmedLine.split('==')[0].split('>=')[0].split('<=')[0].split('~=')[0].trim();
+
+                if (packageNameOnly) {
+                    const result = await getPackageVersionOnDateFromPypiApi(packageNameOnly, targetDate);
+                    processedResults.push(result);
+                    // Add a small delay to be polite to the PyPI API
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } else {
+                    processedResults.push({ processedLine: line, pypiHistoryUrl: null }); // Add line back if unparseable
+                }
+            }
+
+            // Update the requirements.txt output area
+            versionedRequirementsOutput.value = processedResults.map(r => r.processedLine).join('\n');
+
+            // Update the PyPI links output area
+            const validLinks = processedResults.filter(r => r.pypiHistoryUrl);
+            if (validLinks.length > 0) {
+                pypiLinksOutput.innerHTML = validLinks
+                    .map(r => `<a href="${r.pypiHistoryUrl}" target="_blank" rel="noopener noreferrer" title="View release history for ${r.processedLine.split('==')[0]} on PyPI">${r.processedLine.split('==')[0]} History</a>`)
+                    .join('');
+            } else {
+                pypiLinksOutput.innerHTML = 'No direct PyPI history links generated (packages not found or errors occurred).';
+            }
+
+
+            // Reset button state
+            buttonText.textContent = 'Generate Versioned Requirements';
+            loadingSpinner.classList.add('hidden');
+            generateButton.disabled = false;
+        });
+    </script>
+</body>
+</html>
